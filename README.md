@@ -56,7 +56,7 @@ The template of the partial - to be included:
 <img src="https://github.com/ralphwetzel/node-red-contrib-eta/blob/cf077f5bfa4150fe0d8c5177efa5903c4d436aa1/resources/eta_partial.png"
     style="min-width: 474px; ; width: 474px; align: center; border: 1px solid lightgray;"/>
 
-You may import this example as well via the node-red Import menu option.
+You may import this example as well via the Node-RED Import menu option.
 
 ### References
 
