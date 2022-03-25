@@ -1,0 +1,771 @@
+<script type="text/html" data-template-name="etaTemplate">
+    <style>
+        ol#node-input-filter-container .red-ui-typedInput-container {
+            flex:1;
+        }
+    </style>
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" style="width: calc(100% - 120px)" placeholder="Name">
+    </div>
+    
+    <div class="form-row" id="form-row-tabs-container">
+        <div class="tabs-container">
+            <ul id="tabs-tabs"></ul>
+        </div>    
+    </div>
+
+    <div class="form-row" id="form-row-templateName">
+        <label for="node-templateName" style="width: 130px"><i class="fa fa-tag"></i> Template Name</label>
+        <input type="text" id="node-templateName" style="width: calc(100% - 175px)" placeholder="Template Name">
+        <button id="node-save-template" placeholder="SaveTemplate" class="red-ui-button"><i class="fa fa-arrow-circle-o-down fa-lg" aria-hidden="true"></i></button>
+    </div>
+
+    <div class="form-row node-text-editor-row" style="position:relative">
+        <div style="height: 220px; min-height:150px;" class="node-text-editor" id="node-template-editor" ></div>
+        <div style="position: absolute; right:0; bottom: calc(100% - 20px); z-Index: 10;">
+            <button id="node-template-expand-js" class="red-ui-button red-ui-button-small">
+                <i class="fa fa-expand"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="form-row" id="form-row-delete-template">
+        <button id="node-delete-template" placeholder="DeleteTemplate" class="red-ui-button"><i class="fa fa-trash-o fa-lg" style="color: red"></i>&nbsp; Delete Template</button>
+    </div>
+
+
+</script>
+
+<script type="text/javascript">
+    (function () {
+
+        function rand_id(prefix) {
+            return Math.random().toString(36).replace('0.', prefix || '');
+        }
+
+        let tplTemplate = "<% /*\r\n" +
+            "\tThis is the Eta root template.\r\n" +
+            "\tYou may add further templates to define\r\n" +
+            "\tpartials or layouts.\r\n" +
+            "\tCheck https://eta.js.org for syntax\r\n" +
+            "\tsupport.\r\n" +
+            "*/ -%>\r\n";
+
+        let tplRoot = {
+            "id": "__root__",
+            "label": "__root__",
+            "template": tplTemplate,
+        }
+
+        // *****
+        // ETA language syntax highlighting for MONACO
+        if (window.monaco) {
+            let _monaco = window.monaco;
+
+            _monaco.languages.register({
+				id: make_eta_id('ETA'),
+			});
+			_monaco.languages.setMonarchTokensProvider(make_eta_id('ETA'), get_eta_language());
+
+            _monaco.editor.defineTheme(make_eta_id('ETATheme'), {
+                base: 'vs',
+                inherit: true,
+                rules: [
+                    { token: 'delimiter.eta', fontStyle: 'bold' },
+                    // { token: 'eta', foreground: 'ff0000', fontStyle: 'bold' },
+                ],
+                colors: []
+            });
+        }
+
+        function make_eta_id(appendix) {
+            let base = "ralphwetzel-node-red-contrib-eta-";
+            base += appendix;
+            return base.toLowerCase();
+        }
+
+        function get_eta_language() {
+            // Difficulty: "Hurt me plenty"
+            // Language definition for HTML
+            // This definition uses states extensively to
+            // - match up tags.
+            // - and to embed scripts dynamically
+            // See also the documentation for an explanation of these techniques
+            return {
+                defaultToken: '',
+                tokenPostfix: '.html',
+                ignoreCase: true,
+
+                // RDW: brackets don't work as they should!
+                brackets: [
+                    { open: '<%', close: '%>', token: 'delimiter.eta' },
+                ],
+
+                // The main tokenizer for our languages
+                tokenizer: {
+                    root: [
+                        [/<!DOCTYPE/, 'metatag', '@doctype'],
+                        [/<!--/, 'comment', '@comment'],
+                        { include: '@etaBrackets' },
+                        [/(<)((?:[\w\-]+:)?[\w\-]+)(\s*)(\/>)/, ['delimiter', 'tag', '', 'delimiter']],
+                        [/(<)(script)/, ['delimiter', { token: 'tag', next: '@script' }]],
+                        [/(<)(style)/, ['delimiter', { token: 'tag', next: '@style' }]],
+                        [/(<)((?:[\w\-]+:)?[\w\-]+)/, ['delimiter', { token: 'tag', next: '@otherTag' }]],
+                        [/(<\/)((?:[\w\-]+:)?[\w\-]+)/, ['delimiter', { token: 'tag', next: '@otherTag' }]],
+                        [/</, 'delimiter'],
+                        [/[^<]+/], // text
+                    ],
+
+                    etaBrackets: [
+                        [/(<%[^\S\r\n]*[-_]?[^\S\r\n]*[~|=]?)/, { token: 'delimiter.eta' , bracket: '@open',
+                            next: '@eta' , nextEmbedded: 'text/javascript' }],
+                        [/([_-]?[^\S\r\n]*%>)/, { token: 'delimiter.eta', bracket: '@close'}],
+                    ],
+
+                    eta: [
+                        [/[^"%_-]+/, ''],
+                        [/([_-]?[^\S\r\n]*%>)/, { token: '@rematch', next: '@pop', nextEmbedded: '@pop' }],
+                        [/[%_-]/, '']
+                    ],
+
+                    doctype: [
+                        [/[^>]+/, 'metatag.content'],
+                        [/>/, 'metatag', '@pop'],
+                    ],
+
+                    comment: [
+                        [/-->/, 'comment', '@pop'],
+                        [/[^-]+/, 'comment.content'],
+                        [/./, 'comment.content']
+                    ],
+
+                    otherTag: [
+                        [/\/?>/, 'delimiter', '@pop'],
+                        // [/"([^"]*)"/, 'attribute.value'],
+                        [/"/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        [/'/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        // [/"/, 'attribute.value', '@attributeValue'],
+                        // [/'([^']*)'/, 'attribute.value'],
+                        [/[\w\-]+/, 'attribute.name'],
+                        [/=/, 'delimiter'],
+                        [/[ \t\r\n]+/], // whitespace
+                    ],
+
+                    attributeValue: [
+                        { include: '@etaBrackets' },
+                        [/["']/, {
+                            cases: {
+                                '$0==$S2' : { token: 'attribute.value', next: '@pop'},
+                                '@default': {token: 'attribute.value'}
+                            }
+                        }],
+                        [/[^"']/, 'attribute.value'],
+                        // [/[ \t\r\n]+/], // whitespace
+                    ],
+                    // -- BEGIN <script> tags handling
+
+                    // After <script
+                    script: [
+                        [/type/, 'attribute.name', '@scriptAfterType'],
+                        [/"/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        [/'/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        [/[\w\-]+/, 'attribute.name'],
+                        [/=/, 'delimiter'],
+                        [/>/, { token: 'delimiter', next: '@scriptEmbedded', nextEmbedded: 'text/javascript' }],
+                        [/[ \t\r\n]+/], // whitespace
+                        [/(<\/)(script\s*)(>)/, ['delimiter', 'tag', { token: 'delimiter', next: '@pop' }]]
+                    ],
+
+                    // After <script ... type
+                    scriptAfterType: [
+                        [/=/, 'delimiter', '@scriptAfterTypeEquals'],
+                        [/>/, { token: 'delimiter', next: '@scriptEmbedded', nextEmbedded: 'text/javascript' }], // cover invalid e.g. <script type>
+                        [/[ \t\r\n]+/], // whitespace
+                        [/<\/script\s*>/, { token: '@rematch', next: '@pop' }]
+                    ],
+
+                    // After <script ... type =
+                    scriptAfterTypeEquals: [
+                        [/"([^"]*)"/, { token: 'attribute.value', switchTo: '@scriptWithCustomType.$1' }],
+                        [/'([^']*)'/, { token: 'attribute.value', switchTo: '@scriptWithCustomType.$1' }],
+                        [/>/, { token: 'delimiter', next: '@scriptEmbedded', nextEmbedded: 'text/javascript' }], // cover invalid e.g. <script type=>
+                        [/[ \t\r\n]+/], // whitespace
+                        [/<\/script\s*>/, { token: '@rematch', next: '@pop' }]
+                    ],
+
+                    // After <script ... type = $S2
+                    scriptWithCustomType: [
+                        [/>/, { token: 'delimiter', next: '@scriptEmbedded.$S2', nextEmbedded: '$S2' }],
+                        [/"/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        [/'/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        [/[\w\-]+/, 'attribute.name'],
+                        [/=/, 'delimiter'],
+                        [/[ \t\r\n]+/], // whitespace
+                        [/<\/script\s*>/, { token: '@rematch', next: '@pop' }]
+                    ],
+
+                    scriptEmbedded: [
+                        [/<\/script/, { token: '@rematch', next: '@pop', nextEmbedded: '@pop' }],
+                        [/[^<]+/, '']
+                    ],
+
+                    // -- END <script> tags handling
+
+
+                    // -- BEGIN <style> tags handling
+
+                    // After <style
+                    style: [
+                        [/type/, 'attribute.name', '@styleAfterType'],
+                        [/"/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        [/'/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        [/[\w\-]+/, 'attribute.name'],
+                        [/=/, 'delimiter'],
+                        [/>/, { token: 'delimiter', next: '@styleEmbedded', nextEmbedded: 'text/css' }],
+                        [/[ \t\r\n]+/], // whitespace
+                        [/(<\/)(style\s*)(>)/, ['delimiter', 'tag', { token: 'delimiter', next: '@pop' }]]
+                    ],
+
+                    // After <style ... type
+                    styleAfterType: [
+                        [/=/, 'delimiter', '@styleAfterTypeEquals'],
+                        [/>/, { token: 'delimiter', next: '@styleEmbedded', nextEmbedded: 'text/css' }], // cover invalid e.g. <style type>
+                        [/[ \t\r\n]+/], // whitespace
+                        [/<\/style\s*>/, { token: '@rematch', next: '@pop' }]
+                    ],
+
+                    // After <style ... type =
+                    styleAfterTypeEquals: [
+                        [/"([^"]*)"/, { token: 'attribute.value', switchTo: '@styleWithCustomType.$1' }],
+                        [/'([^']*)'/, { token: 'attribute.value', switchTo: '@styleWithCustomType.$1' }],
+                        [/>/, { token: 'delimiter', next: '@styleEmbedded', nextEmbedded: 'text/css' }], // cover invalid e.g. <style type=>
+                        [/[ \t\r\n]+/], // whitespace
+                        [/<\/style\s*>/, { token: '@rematch', next: '@pop' }]
+                    ],
+
+                    // After <style ... type = $S2
+                    styleWithCustomType: [
+                        [/>/, { token: 'delimiter', next: '@styleEmbedded.$S2', nextEmbedded: '$S2' }],
+                        [/"/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        [/'/, {token: 'attribute.value', next: '@attributeValue.$0'}],
+                        [/[\w\-]+/, 'attribute.name'],
+                        [/=/, 'delimiter'],
+                        [/[ \t\r\n]+/], // whitespace
+                        [/<\/style\s*>/, { token: '@rematch', next: '@pop' }]
+                    ],
+
+                    styleEmbedded: [
+                        [/<\/style/, { token: '@rematch', next: '@pop', nextEmbedded: '@pop' }],
+                        [/[^<]+/, '']
+                    ],
+
+                    // -- END <style> tags handling
+                },
+            }
+        }
+
+        // end | ETA language syntax highlighting for MONACO
+        // *****
+
+        // *****
+        // * etaTypeEditor
+        
+        // * based on @node-red/editor-client/src/js/ui/editors/text.js
+        // * Copyright JS Foundation and other contributors, http://js.foundation
+
+        (function () {
+            
+            var template = '<script type="text/x-red" data-template-name="_eta"><div class="form-row node-eta-editor-row"><div style="height: 200px;min-height: 150px;" class="node-eta-editor" id="node-input-eta"></div></div><' + '/script>';
+
+            var definition = {
+                show: function(options) {
+                    var value = options.value;
+                    var onComplete = options.complete;
+                    var type = "_eta"
+                    if ($("script[data-template-name='"+type+"']").length === 0) {
+                        $(template).appendTo("#red-ui-editor-node-configs");
+                    }
+                    RED.view.state(RED.state.EDITING);
+                    var expressionEditor;
+                    var changeTimer;
+
+                    var trayOptions = {
+                        title: options.title,
+                        width: options.width||"inherit",
+                        buttons: [
+                            {
+                                id: "node-dialog-cancel",
+                                text: RED._("common.label.cancel"),
+                                click: function() {
+                                    RED.tray.close();
+                                }
+                            },
+                            {
+                                id: "node-dialog-ok",
+                                text: RED._("common.label.done"),
+                                class: "primary",
+                                click: function() {
+                                    onComplete(expressionEditor.getValue(),expressionEditor.getCursorPosition());
+                                    RED.tray.close();
+                                }
+                            }
+                        ],
+                        resize: function(dimensions) {
+                            var rows = $("#dialog-form>div:not(.node-eta-editor-row)");
+                            var editorRow = $("#dialog-form>div.node-eta-editor-row");
+                            var height = $("#dialog-form").height();
+                            // for (var i=0;i<rows.size();i++) {
+                            //     height -= $(rows[i]).outerHeight(true);
+                            // }
+                            // height -= (parseInt($("#dialog-form").css("marginTop"))+parseInt($("#dialog-form").css("marginBottom")));
+                            $(".node-eta-editor").css("height",height+"px");
+                            expressionEditor.resize();
+                        },
+                        open: function(tray) {
+                            var trayBody = tray.find('.red-ui-tray-body');
+                            var dialogForm = RED.editor.buildEditForm(tray.find('.red-ui-tray-body'),'dialog-form',type,'editor');
+                            expressionEditor = RED.editor.createEditor({
+                                id: 'node-input-eta',
+                                value: "",
+                                mode:"ace/mode/html"
+                            });
+
+                            expressionEditor.getSession().setValue(value||"",-1);
+
+                            if (window.monaco && RED.editor.codeEditor.settings.lib === "monaco") {
+
+                                // NR manipulates the 'language' setting defined in the options object.
+                                // Thus we let this happen & switch to our custom language syntax highlighter now:
+
+                                let eta_model = window.monaco.editor.createModel(expressionEditor.getValue() || "", make_eta_id('ETA'));
+                                expressionEditor.setModel(eta_model)
+                                expressionEditor.setTheme(make_eta_id('ETATheme'));
+                            } 
+
+                            if (options.cursor) {
+                                expressionEditor.gotoLine(options.cursor.row+1,options.cursor.column,false);
+                            }
+                        },
+                        close: function() {
+                            expressionEditor.destroy();
+                            if (options.onclose) {
+                                options.onclose();
+                            }
+                        },
+                        show: function() {}
+                    }
+                    RED.tray.show(trayOptions);
+                }
+            }
+
+            RED.editor.registerTypeEditor("_eta", definition);
+        })();
+
+        // end | etaTypeEditor
+        // *****
+
+        var flag_modified;
+
+        RED.nodes.registerType('etaTemplate', {
+            category: 'Eta',
+            color: '#A9A9A9',
+            defaults: {
+                name: { value: "" },
+                templates: { value: [tplRoot], }
+            },
+            inputs: 1,
+            outputs: 1,
+            icon: "eta_logo.svg",
+            label: function () {
+                return this.name || "eta";
+            },
+            labelStyle: function () {
+                return (this.name || this.command) ? "node_label_italic" : "";
+            },
+            paletteLabel: "eta",
+            oneditprepare: function () {
+
+                var self = this;
+                flag_modified = false;
+  
+                self.templates = self.templates || [];
+                if (!self.templates.length) {
+                    self.templates.push(Object.create(tplRoot));
+                }
+
+                self.get_template = function(id) {
+                    for (const tpl of self.templates) {
+                        if (tpl.id === id) {
+                            return tpl;
+                        }
+                    }
+                    return undefined;
+                }
+
+                // https://github.com/node-red/node-red/blob/380a08242af44b1ee54453790b0df076b445bbd5/packages/node_modules/%40node-red/nodes/core/function/10-function.html#L441
+                var buildEditor = function (id, value, defaultValue, extraLibs) {
+
+                    let options = {
+                        id: id,
+                        mode: 'ace/mode/html',
+                        value: value || defaultValue || "",
+                        globals: {
+                            msg: true,
+                            context: true,
+                            RED: true,
+                            util: true,
+                            flow: true,
+                            global: true,
+                            console: true,
+                            Buffer: true,
+                            setTimeout: true,
+                            clearTimeout: true,
+                            setInterval: true,
+                            clearInterval: true,
+                            it: true
+                        },
+                        extraLibs: extraLibs
+                    }
+
+                    var editor = RED.editor.createEditor(options);
+
+                    if (window.monaco && RED.editor.codeEditor.settings.lib === "monaco") {
+
+                        // NR manipulates the 'language' setting defined in the options object.
+                        // Thus we let this happen & switch to our custom language syntax highlighter now:
+        
+                        let eta_model = window.monaco.editor.createModel(editor.getValue() || "", make_eta_id('ETA'));
+                        editor.setModel(eta_model)
+                        editor.setTheme(make_eta_id('ETATheme'));
+                    } 
+
+                    if (defaultValue && value === "") {
+                        editor.moveCursorTo(defaultValue.split("\n").length - 1, 0);
+                    }
+                    return editor;
+                }
+
+                this.editor = buildEditor('node-template-editor')
+                this.currentTab = undefined;
+
+                var tabs = RED.tabs.create({
+                    id: "tabs-tabs",
+                    vertical: false,
+                    scrollable: true,
+                    addButton: function () {
+                        let tpl = addTemplate();
+                        let tab_id = addTemplateTab(tpl);
+                        tabs.activateTab(tab_id);
+                        self.changed = true;
+                    },
+                    addButtonCaption: "Add new template",
+                    onchange: function (tab) {
+                        console.log(self.currentTab)
+                        if (self.currentTab) {
+                            self.save_properties_on_tab(self.currentTab);
+                        }
+                        let tpl = self.get_template(tab.label);
+                        if (tpl) {
+                            $("#node-templateName").prop("disabled", tpl.id === tplRoot.id);
+                            $("#node-templateName").val(tpl.label);
+                            $("#node-templateName").toggleClass("input-error", (verify_template_label(tpl) === false));
+                            self.editor.setValue(tpl.template);
+                            self.editor.moveCursorTo(tab.cursor.row, tab.cursor.column);
+                            $("#node-delete-template").prop("disabled", tpl.id === tplRoot.id);
+                            self.editor.focus();
+
+                            self.currentTab = tab;
+                        }
+                    },
+                    onreorder: function () { },
+                });
+
+                self.tabs = tabs;
+
+                function verify_template_label(tpl) {
+                    // check if tpl.label is unique
+                    for (const t of self.templates) {
+                        if ((tpl !== t) && (tpl.label === t.id)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+
+                this.save_properties_on_tab = function(tab) {
+                    let self = this;
+                    let tpl = self.get_template(tab.label);
+                    if (tpl) {
+
+                        let label = $("#node-templateName").val();
+                        let template = self.editor.getValue();
+
+                        if (label !== tpl.label || template !== tpl.template) {
+                            console.log("changed", self);
+                            tpl.label = label;
+                            tpl.template = template;
+                            flag_modified = true;
+                        }
+
+                        let c = self.editor.getCursorPosition();
+                        tab.cursor.row = c.row + 1;
+                        tab.cursor.column = c.column;
+                    }
+                }
+                var expandButtonClickHandler = function (editor) {
+                    return function (e) {
+                        e.preventDefault();
+                        var value = editor.getValue();
+                        var extraLibs = self.libs || [];
+                        RED.editor.showTypeEditor("_eta", {
+                            value: value,
+                            width: "Infinity",
+                            cursor: editor.getCursorPosition(),
+                            mode: "html",
+                            title: "Eta Template Editor",
+                            complete: function (v, cursor) {
+                                editor.setValue(v, -1);
+                                editor.gotoLine(cursor.row + 1, cursor.column, false);
+                                setTimeout(function () {
+                                    editor.focus();
+                                }, 300);
+                            },
+                            extraLibs: extraLibs
+                        })
+                    }
+                }
+                $("#node-template-expand-js").on("click", expandButtonClickHandler(self.editor));
+
+                $("#node-delete-template").on("click", function() {
+                    if (!self.currentTab) {
+                        return;
+                    }
+                    let tpl_id = self.currentTab.label;
+                    let tab_id = self.currentTab.id
+                    for (let i=0;i<self.templates.length;i++) {
+                        let tpl = self.templates[i];
+                        if ((tpl.id === tpl_id) && (tpl.id !== tplRoot.id)) {
+                            self.templates.splice(i,1);
+                            delete tpl;
+                            self.currentTab = undefined;
+                            tabs.removeTab(tab_id);
+
+                            flag_modified = true;
+                            break;
+                        }
+                    }
+                });
+
+                $("#node-templateName").on("input propertychange paste", function() {
+                    if (!self.currentTab) {
+                        return;
+                    }
+                    const current_tpl = self.get_template(self.currentTab.label);
+
+                    let name = $("#node-templateName").val().toString();
+                    let new_id = name.trim() // .replace(/\s/g, '-') // trim & replace all whitespace
+                    
+                    if (self.currentTab.label == new_id) {
+                        $("#node-templateName").removeClass("input-error");
+                        return;
+                    }
+
+                    let tpl = self.get_template(new_id);
+                    if (tpl) {
+                        $("#node-templateName").addClass("input-error");
+                        return;
+                    }
+                    
+                    $("#node-templateName").removeClass("input-error");
+                    current_tpl.id = new_id;
+                    current_tpl.label = name;
+                    tabs.renameTab(self.currentTab.id, new_id);
+
+                    flag_modified = true;
+
+                });
+
+
+                $("#node-save-template").on("click", function () {
+                    if (!self.currentTab) {
+                        return;
+                    }
+
+                    const tpl = self.get_template(self.currentTab.label);
+                    if (tpl) {
+                        let file = self.currentTab.label;
+                        file = file.trim().replace(/\s/g, '-');
+                        if (file.substring(file.length - 4) !== ".eta") {
+                            file += ".eta"
+                        }
+                        let data = tpl.template;
+
+                        // This is the way node-red does downloads @ clipboard.js, function downloadData() {}
+                        if (window.navigator.msSaveBlob) {
+                            // IE11 workaround
+                            // IE does not support data uri scheme for downloading data
+                            var blob = new Blob([data], {
+                                type: "data:text/plain;charset=utf-8"
+                            });
+                            navigator.msSaveBlob(blob, file);
+                        }
+                        else {
+                            var element = document.createElement('a');
+                            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(data));
+                            element.setAttribute('download', file);
+                            element.style.display = 'none';
+                            document.body.appendChild(element);
+                            element.click();
+                            document.body.removeChild(element);
+                        }
+                    }
+                });
+                RED.popover.tooltip($("#node-save-template"),"Download Template");
+
+                function addTemplate() {
+                    let index = 1;
+                    let label = "template_";
+                    let id = "";
+                    let tpl = undefined;
+
+                    do {
+                        id = label + index.toString();
+                        tpl = self.get_template(id);
+                        if (!tpl) {
+                            break;
+                        }
+                        index += 1;
+                    } while (true)
+
+                    tpl = {
+                        "id": id,
+                        "label": id,
+                        "template": "<% /* " + id + " */ -%>\r\n",
+                    };
+
+                    self.templates.push(tpl);
+                    return tpl;
+                }
+
+                function addTemplateTab(template) {
+                    let tab = {
+                        id: rand_id("eta_tabs_"),
+                        label: template.id,
+                        iconClass: "fa fa-" + (template.id==="__root__"?"home":"code"),
+                        cursor: {
+                            row: 0,
+                            column: 0
+                        }
+                    }
+                    tabs.addTab(tab, -1);
+                    return tab.id;
+                }
+
+                for (const tpl of self.templates) {
+                    addTemplateTab(tpl);
+                }
+
+                // self.editor.focus();
+
+            },
+            oneditsave: function () {
+                if (this.currentTab) {
+                    this.save_properties_on_tab(this.currentTab);
+                }
+                this.editor.destroy();
+                delete this.editor;
+
+                // returning 'true' here sets the "Deploy" status in the editor.
+                return flag_modified;
+            },
+            oneditcancel: function () {
+                this.editor.destroy();
+                delete this.editor;
+            },
+            oneditresize: function (size) {
+
+                var self = this;
+                let tab_height = $("#form-row-tabs-container").outerHeight(true);
+                let name_height = $("#form-row-templateName").outerHeight(true);
+                let del_height = $("#form-row-delete-template").outerHeight(true);
+
+                let height = size.height - tab_height - name_height - del_height;
+                let editorRow = $("#dialog-form>div.node-text-editor-row");
+                height -= (parseInt(editorRow.css("marginTop")) + parseInt(editorRow.css("marginBottom")));
+                height -= 6;
+                $("#node-template-editor").height(height);
+
+                if (self.tabs) {
+                    self.tabs.resize();
+                }
+            }
+
+        });
+
+    })();
+</script>
+
+
+<script type="text/markdown" data-help-name="etaTemplate">
+A node to utilize Eta - the lightweight, powerful, pluggable embedded JS template engine.
+
+### Inputs
+
+: msg (object) :  (standard) message object with data to be used for redering the \_\_root\_\_ template.
+
+    
+### Outputs
+
+: payload (string) : the result of redering the \_\_root\_\_ template with the data provided as input.
+    
+### Details
+
+This nodes allows to render a document template (named \_\_root\_\_) by utilizing the Eta JS template engine.
+For help regarding the template syntax refer to the [Eta Syntax Overview](https://eta.js.org/docs/syntax) website.
+
+If you've [enabled the use of the Monaco text editor](https://discourse.nodered.org/t/node-red-2-0-0-beta-1-released/46990#monaco-text-editor-11), syntax highlighting support is provided.
+
+
+The document template (\_\_root\_\_) shall be defined in the configuration options of this node.
+Data provided to the node may be accessed in the template via a variable called `it`.
+
+```
+<% /*
+    This is the Eta root template.
+    You may add further templates to define
+    partials or layouts.
+    Check https://eta.js.org for syntax
+    support.
+*/ -%>
+<% = it.msg.payload + "! Wow!" %>
+```
+
+To use partials, you may define additional templates in the configuration options of this node.
+Using those partials follows the standard Eta scheme; the data (object) again may be accessed - within the partial - via `it`.
+
+```
+<%~ include(template_name, {msg: it.msg}) %>
+```
+Please be aware that file partials are not supported!
+
+
+An example:
+
+The \_\_root\_\_ document template:
+
+<img src="resources/@ralphwetzel/node-red-contrib-eta/eta_root.png"
+    style="min-width: 474px; width: 474px; align: center; border: 1px solid lightgray;"/>
+
+The template of the partial - to be included:
+
+<img src="resources/@ralphwetzel/node-red-contrib-eta/eta_partial.png"
+    style="min-width: 474px; ; width: 474px; align: center; border: 1px solid lightgray;"/>
+
+You may import this example as well via the Import menu option.
+
+### References
+
+- [Eta website](https://eta.js.org)
+
+</script>

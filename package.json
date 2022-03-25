@@ -1,0 +1,24 @@
+{
+  "name": "@ralphwetzel/node-red-contrib-eta",
+  "version": "1.0.0",
+  "description": "A node to utilize Eta - the lightweight, powerful, pluggable embedded JS template engine.",
+  "main": "eta.js",
+  "scripts": {
+  },
+  "keywords": [
+    "node-red",
+    "Eta",
+    "Template Engine",
+    "Javascript"
+  ],
+  "author": "Ralph Wetzel",
+  "license": "MIT",
+  "dependencies": {
+    "eta": "^1.12.3"
+  },
+  "node-red" : {
+    "nodes": {
+        "eta": "eta.js"
+    }
+}
+}
