@@ -2,7 +2,7 @@
 
 <img width="150" alt="image" src="https://user-images.githubusercontent.com/16342003/160198427-2a69ff10-e8bf-4873-9d99-2929a584ccc8.png">
 
-A node-red node to utilize Eta - the lightweight, powerful, pluggable embedded JS template engine.
+A Node-RED node to utilize Eta - the lightweight, powerful, pluggable embedded JS template engine.
 
 ### Inputs
 
