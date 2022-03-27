@@ -48,12 +48,12 @@ An example:
 
 The \_\_root\_\_ document template:
 
-<img alt="eta_root" src="https://github.com/ralphwetzel/node-red-contrib-eta/blob/cf077f5bfa4150fe0d8c5177efa5903c4d436aa1/resources/eta_root.png"
+<img alt="eta_root" src="https://raw.githubusercontent.com/ralphwetzel/node-red-contrib-eta/master/resources/eta_root.png"
     style="min-width: 474px; width: 474px; align: center; border: 1px solid lightgray;"/>
 
 The template of the partial - to be included:
 
-<img alt="eta_partial" src="https://github.com/ralphwetzel/node-red-contrib-eta/blob/cf077f5bfa4150fe0d8c5177efa5903c4d436aa1/resources/eta_partial.png"
+<img alt="eta_partial" src="https://raw.githubusercontent.com/ralphwetzel/node-red-contrib-eta/master/resources/eta_partial.png"
     style="min-width: 474px; ; width: 474px; align: center; border: 1px solid lightgray;"/>
 
 You may import this example as well via the Node-RED Import menu option.
