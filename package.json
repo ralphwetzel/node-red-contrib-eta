@@ -29,5 +29,8 @@
     "nodes": {
         "eta": "eta.js"
     }
-}
+  },
+  "engines": {
+      "node": ">=12.0.0"
+    }
 }
