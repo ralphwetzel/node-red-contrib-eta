@@ -276,14 +276,14 @@
 
         (function () {
             
-            var template = '<script type="text/x-red" data-template-name="etaTemplate"><div class="form-row node-eta-editor-row"><div style="height: 200px;min-height: 150px;" class="node-eta-editor" id="node-input-eta"></div></div><' + '/script>';
+            var template = '<script type="text/x-red" data-templateX-name="_eta"><div class="form-row node-eta-editor-row"><div style="height: 200px;min-height: 150px;" class="node-eta-editor" id="node-input-eta"></div></div><' + '/script>';
 
             var definition = {
                 show: function(options) {
                     var value = options.value;
                     var onComplete = options.complete;
-                    var type = "etaTemplate"
-                    if ($("script[data-template-name='"+type+"']").length === 0) {
+                    var type = "_eta"
+                    if ($("script[data-templateX-name='"+type+"']").length === 0) {
                         $(template).appendTo("#red-ui-editor-node-configs");
                     }
                     RED.view.state(RED.state.EDITING);
@@ -359,7 +359,7 @@
                 }
             }
 
-            RED.editor.registerTypeEditor("etaTemplate", definition);
+            RED.editor.registerTypeEditor("_eta", definition);
         })();
 
         // end | etaTypeEditor
@@ -518,7 +518,7 @@
                         e.preventDefault();
                         var value = editor.getValue();
                         var extraLibs = self.libs || [];
-                        RED.editor.showTypeEditor("etaTemplate", {
+                        RED.editor.showTypeEditor("_eta", {
                             value: value,
                             width: "Infinity",
                             cursor: editor.getCursorPosition(),
