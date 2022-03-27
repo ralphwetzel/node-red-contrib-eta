@@ -9,14 +9,23 @@
     "node-red",
     "Eta",
     "Template Engine",
-    "Javascript"
+    "Javascript",
+    "template"
   ],
-  "author": "Ralph Wetzel",
+  "repository": {
+		"type": "git",
+		"url": "git+https://github.com/ralphwetzel/node-red-contrib-eta.git"
+	},
+	"author": {
+		"name": "Ralph Wetzel",
+		"email": "ralph.wetzel@gmx.de"
+	},
   "license": "MIT",
   "dependencies": {
     "eta": "^1.12.3"
   },
   "node-red" : {
+    "version": ">=2.0.0",
     "nodes": {
         "eta": "eta.js"
     }
