@@ -6,12 +6,12 @@ A [Node-RED](https://www.nodered.org) node to utilize Eta - the lightweight, pow
 
 ### Inputs
 
-`msg` (object) :  (standard) message object with data to be used for redering the \_\_root\_\_ template.
+`msg` (object) :  (standard) message object with data to be used for rendering the \_\_root\_\_ template.
 
     
 ### Outputs
 
-`payload` (string) : the result of redering the \_\_root\_\_ template with the data provided as input.
+`payload` (string) : the result of rendering the \_\_root\_\_ template with the data provided as input.
     
 ### Details
 
