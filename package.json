@@ -1,6 +1,6 @@
 {
   "name": "@ralphwetzel/node-red-contrib-eta",
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0-rc.3",
   "description": "A node to utilize Eta - the lightweight, powerful, pluggable embedded JS template engine.",
   "main": "eta.js",
   "scripts": {
