@@ -15,14 +15,22 @@
         </div>    
     </div>
 
-    <div class="form-row" id="form-row-templateName">
+    <div class="form-row" id="form-row-templateName" style="margin-bottom: 4px">
         <label for="node-templateName" style="width: 130px"><i class="fa fa-tag"></i> Template Name</label>
         <input type="text" id="node-templateName" style="width: calc(100% - 175px)" placeholder="Template Name">
         <button id="node-save-template" placeholder="SaveTemplate" class="red-ui-button"><i class="fa fa-arrow-circle-o-down fa-lg" aria-hidden="true"></i></button>
     </div>
 
+    <div class="form-row" id="form-row-async">
+        <label for="node-async" style="width: 130px"> </label>
+        <label for="node-async" style="width:70%; margin-bottom: 0px">
+        <input type="checkbox" id="node-async" style="display:inline-block; width:22px; vertical-align:top; margin-top: 3px;" autocomplete="off">
+            <span>This template shall be rendered <b>async</b>! </span>
+        </label>
+    </div>
+
     <div class="form-row node-text-editor-row" style="position:relative">
-        <div style="height: 220px; min-height:150px;" class="node-text-editor" id="node-template-editor" ></div>
+        <div style="height: calc(100% - 120px); min-height:150px;" class="node-text-editor" id="node-template-editor" ></div>
         <div style="position: absolute; right:0; bottom: calc(100% - 20px); z-Index: 10;">
             <button id="node-template-expand-js" class="red-ui-button red-ui-button-small">
                 <i class="fa fa-expand"></i>
@@ -31,7 +39,7 @@
     </div>
 
     <div class="form-row" id="form-row-delete-template">
-        <button id="node-delete-template" placeholder="DeleteTemplate" class="red-ui-button"><i class="fa fa-trash-o fa-lg" style="color: red"></i>&nbsp; Delete Template</button>
+        <button id="node-delete-template" placeholder="DeleteTemplate" class="red-ui-button" style="margin-bottom: 8px"><i class="fa fa-trash-o fa-lg" style="color: red"></i>&nbsp; Delete Template</button>
     </div>
 
 
@@ -425,7 +433,7 @@
                             clearTimeout: true,
                             setInterval: true,
                             clearInterval: true,
-                            it: true
+                            // it: true
                         },
                         extraLibs: extraLibs
                     }
@@ -472,6 +480,7 @@
                             $("#node-templateName").prop("disabled", tpl.id === tplRoot.id);
                             $("#node-templateName").val(tpl.label);
                             $("#node-templateName").toggleClass("input-error", (verify_template_label(tpl) === false));
+                            $("#node-async").prop("checked", tpl.async ?? false);
                             self.editor.setValue(tpl.template);
                             self.editor.moveCursorTo(tab.cursor.row, tab.cursor.column);
                             $("#node-delete-template").prop("disabled", tpl.id === tplRoot.id);
@@ -502,11 +511,13 @@
 
                         let label = $("#node-templateName").val();
                         let template = self.editor.getValue();
+                        let async = $("#node-async").is(":checked");
 
-                        if (label !== tpl.label || template !== tpl.template) {
+                        if (label !== tpl.label || template !== tpl.template || async !== (tpl.async ?? false) ) {
                             console.log("changed", self);
                             tpl.label = label;
                             tpl.template = template;
+                            tpl.async = async;
                             flag_modified = true;
                         }
 
@@ -644,6 +655,7 @@
                         "id": id,
                         "label": id,
                         "template": "<% /* " + id + " */ -%>\r\n",
+                        "async": false
                     };
 
                     self.templates.push(tpl);
@@ -658,7 +670,8 @@
                         cursor: {
                             row: 0,
                             column: 0
-                        }
+                        },
+                        async: template.async ?? false
                     }
                     tabs.addTab(tab, -1);
                     return tab.id;
@@ -691,8 +704,9 @@
                 let tab_height = $("#form-row-tabs-container").outerHeight(true);
                 let name_height = $("#form-row-templateName").outerHeight(true);
                 let del_height = $("#form-row-delete-template").outerHeight(true);
+                let async_height = $("#form-row-async").outerHeight(true);
 
-                let height = size.height - tab_height - name_height - del_height;
+                let height = size.height - tab_height - name_height - del_height - async_height;
                 let editorRow = $("#dialog-form>div.node-text-editor-row");
                 height -= (parseInt(editorRow.css("marginTop")) + parseInt(editorRow.css("marginBottom")));
                 height -= 6;
@@ -712,25 +726,27 @@
 <script type="text/markdown" data-help-name="etaTemplate">
 A node to utilize Eta - the lightweight, powerful, pluggable embedded JS template engine.
 
+> **Watch out**: v2 introduces a [change](https://github.com/ralphwetzel/node-red-contrib-eta#changelog) that _might_ break the rendering of a v1 template!
+
 ### Inputs
 
-: msg (object) :  (standard) message object with data to be used for rendering the \_\_root\_\_ template.
+: msg (object) :  (standard) message object with data to be used for rendering the `__root__` template.
 
     
 ### Outputs
 
-: payload (string) : the result of rendering the \_\_root\_\_ template with the data provided as input.
+: payload (string) : the result of rendering the `__root__` template with the data provided as input.
     
 ### Details
 
-This nodes allows to render a document template (named \_\_root\_\_) by utilizing the Eta JS template engine.
+This nodes allows to render a document template (labeled `__root__`) by utilizing the Eta JS template engine.
 For help regarding the template syntax refer to the [Eta Syntax Overview](https://eta.js.org/docs/syntax) website.
 
 If you've [enabled the use of the Monaco text editor](https://discourse.nodered.org/t/node-red-2-0-0-beta-1-released/46990#monaco-text-editor-11), syntax highlighting support is provided.
 
 
-The document template (\_\_root\_\_) shall be defined in the configuration options of this node.
-Data provided to the node may be accessed in the template via a variable called `it`.
+The document template (`__root__`) shall be defined in the configuration options of this node.
+Data provided to the node may be accessed in the template via a variable object called `msg`.
 
 ```
 <% /*
@@ -740,21 +756,21 @@ Data provided to the node may be accessed in the template via a variable called 
     Check https://eta.js.org for syntax
     support.
 */ -%>
-<% = it.msg.payload + "! Wow!" %>
+<% = msg.payload + "! Wow!" %>
 ```
 
 To use partials, you may define additional templates in the configuration options of this node.
-Using those partials follows the standard Eta scheme; the data (object) again may be accessed - within the partial - via `it`.
+Using those partials follows the standard Eta scheme; the data (object) again may be accessed - within the partial - via `msg`.
 
 ```
-<%~ include(template_name, {msg: it.msg}) %>
+<%~ include(template_name, msg) %>
 ```
 Please be aware that file partials are not supported!
 
 
 An example:
 
-The \_\_root\_\_ document template:
+The `__root__` document template:
 
 <img src="resources/@ralphwetzel/node-red-contrib-eta/eta_root.png"
     style="min-width: 474px; width: 474px; align: center; border: 1px solid lightgray;"/>
