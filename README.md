@@ -4,6 +4,15 @@
 
 A [Node-RED](https://www.nodered.org) node to utilize Eta - the lightweight, powerful, pluggable embedded JS template engine.
 
+### Changelog
+#### v2.0.0
+* v2 updates `eta.js` library to version v3.x - that introduced asyn rendering of templates.
+* Accessing data to be used for rendering was simplified, as `msg` was introduced as an alternative for `it`. This allows to follow the Node-RED style way accessing data e.g. as `msg.payload` within templates:
+    * __Be advised that there's an implementation detail that might break your `__root__` template!__: In v1, rendering data used to be provided to the root template as `it.msg`. Due to the mentioned change, it's now just `msg`.  
+
+        An example: Accessing the `payload` property (v1: `it.msg.payload`) is now done simply via `msg.payload`.
+    * To feed data to partials, just forward the data object, e.g. `msg`: `include(template_name, msg)`
+
 ### Inputs
 
 `msg` (object) :  (standard) message object with data to be used for rendering the \_\_root\_\_ template.
@@ -22,7 +31,7 @@ If you've [enabled the use of the Monaco text editor](https://discourse.nodered.
 
 
 The document template (\_\_root\_\_) shall be defined in the configuration options of this node.
-Data provided to the node may be accessed in the template via a variable called `it`.
+Data provided to the node may be accessed in the template via a variable called `msg`.
 
 ```
 <% /*
@@ -32,14 +41,14 @@ Data provided to the node may be accessed in the template via a variable called 
     Check https://eta.js.org for syntax
     support.
 */ -%>
-<% = it.msg.payload + "! Wow!" %>
+<% = msg.payload + "! Wow!" %>
 ```
 
 To use partials, you may define additional templates in the configuration options of this node.
-Using those partials follows the standard Eta scheme; the data (object) again may be accessed - within the partial - via `it`.
+Using those partials follows the standard Eta scheme; the data (object) again may be accessed - within the partial - via `msg`.
 
 ```
-<%~ include(template_name, {msg: it.msg}) %>
+<%~ include(template_name, msg) %>
 ```
 Please be aware that file partials are not supported!
 
