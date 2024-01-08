@@ -54,12 +54,13 @@
             {
                 "id": "__root__",
                 "label": "__root__",
-                "template": "<% /*\r\n\tThis is the Eta root template.\r\n\tYou may add further templates to define\r\n\tpartials or layouts.\r\n\tCheck https://eta.js.org for syntax\r\n\tsupport.\r\n*/ _%>\r\n<%_~ include('myPartial', {msg: it.msg}) _%>\r\n "
+                "async": true,
+                "template": "<% /*\r\n\tThis is the Eta root template.\r\n\tYou may add further templates to define\r\n\tpartials or layouts.\r\n\tCheck https://eta.js.org for syntax\r\n\tsupport.\r\n*/ _%>\r\n<%_~ include('myPartial', msg) _%>\r\n "
             },
             {
                 "id": "myPartial",
                 "label": "myPartial",
-                "template": "<% /* myPartial */ %>\r\n<%_ = it.msg.payload + \" @ partial!\" _%>\r\n\r\n"
+                "template": "<% /* myPartial */ %>\r\n<%_ = msg.payload + \" @ partial!\" _%>\r\n\r\n"
             }
         ],
         "x": 410,
