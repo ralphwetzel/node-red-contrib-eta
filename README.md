@@ -6,7 +6,7 @@ A [Node-RED](https://www.nodered.org) node to utilize Eta - the lightweight, pow
 
 ### Changelog
 #### v2.0.0
-* v2 updates `eta.js` library to version v3.x - that introduced asyn rendering of templates.
+* v2 updates `eta.js` library to version v3.x - that introduced async rendering of templates.
 * Accessing data to be used for rendering was simplified, as `msg` was introduced as an alternative for `it`. This allows to follow the Node-RED style way accessing data e.g. as `msg.payload` within templates:
     * __Be advised that there's an implementation detail that might break your `__root__` template!__: In v1, rendering data used to be provided to the root template as `it.msg`. Due to the mentioned change, it's now just `msg`.  
 
